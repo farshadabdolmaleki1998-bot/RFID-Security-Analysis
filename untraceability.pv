@@ -1,0 +1,18 @@
+(* Proposed protocol: untraceability as observational equivalence (diff-equivalence).
+   Left side: the same tag is queried twice.  Right side: two different tags.
+   The adversary acts as the reader (it chooses NR freely and sees every answer).
+   Run:  proverif model_untraceability.pv | grep RESULT                               *)
+
+type key. type nonce.
+fun H1(key,nonce,nonce): bitstring.
+fun H2(key,nonce,nonce): bitstring.
+free c: channel.
+
+let Tag(k:key) =
+  in(c, nr:nonce); new nt:nonce;
+  out(c, (nt, H1(k,nr,nt))); in(c, b:bitstring);
+  if b = H2(k,nt,nr) then 0.
+
+process
+  new ka:key; new kb:key;
+  ( !Tag(ka) | !Tag(choice[ka,kb]) )

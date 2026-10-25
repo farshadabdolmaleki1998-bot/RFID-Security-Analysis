@@ -1,0 +1,34 @@
+(* Proposed protocol: secrecy and authentication (single session, no key update).
+   A = H(k || NR || NT || 01) -> H1,   B = H(k || NT || NR || 02) -> H2.
+   Run:  proverif model_properties.pv | grep RESULT                                   *)
+
+type key. type nonce.
+fun H1(key,nonce,nonce): bitstring.
+fun H2(key,nonce,nonce): bitstring.
+free c: channel.
+free k: key [private].
+
+event TagSends(nonce,nonce).     event ServerAccepts(nonce,nonce).
+event ServerSendsB(nonce,nonce). event TagAccepts(nonce,nonce).
+
+(* 1. secrecy of the key *)
+query attacker(k).
+(* 2. server-side authentication *)
+query nr:nonce, nt:nonce; event(ServerAccepts(nr,nt)) ==> event(TagSends(nr,nt)).
+(* 3. tag-side authentication *)
+query nr:nonce, nt:nonce; event(TagAccepts(nr,nt)) ==> event(ServerSendsB(nr,nt)).
+(* 4. injective versions (one acceptance per session, i.e. replay resistance) *)
+query nr:nonce, nt:nonce; inj-event(ServerAccepts(nr,nt)) ==> inj-event(TagSends(nr,nt)).
+query nr:nonce, nt:nonce; inj-event(TagAccepts(nr,nt)) ==> inj-event(ServerSendsB(nr,nt)).
+
+let Tag(k:key) =
+  in(c, nr:nonce); new nt:nonce; event TagSends(nr,nt);
+  out(c, (nt, H1(k,nr,nt))); in(c, b:bitstring);
+  if b = H2(k,nt,nr) then event TagAccepts(nr,nt).
+
+let Server(k:key) =
+  new nr:nonce; out(c, nr); in(c, (nt:nonce, a:bitstring));
+  if a = H1(k,nr,nt) then
+  event ServerAccepts(nr,nt); event ServerSendsB(nr,nt); out(c, H2(k,nt,nr)).
+
+process !Tag(k) | !Server(k)

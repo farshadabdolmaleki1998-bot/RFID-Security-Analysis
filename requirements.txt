@@ -1,0 +1,2 @@
+# No third-party packages are required.
+# rfid_experiments.py uses only the Python 3 standard library (hashlib, random, os, time, json, math).
